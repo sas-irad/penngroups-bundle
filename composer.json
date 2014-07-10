@@ -1,5 +1,5 @@
 {
-	"name" : "sas-irad/penngroups-query-bundle",
+	"name" : "sas-irad/penngroups-bundle",
 	"type" : "library",
 	"description" : "Perform penngroups lookups via LDAP/WebService",
 	"keywords" : [
@@ -21,9 +21,9 @@
 		"php" : ">=5.3.2"
 	},
 	"minimum-stability" : "dev",
-    "autoload" : {
-        "psr-4" : {
-            "SAS\\IRAD\\PennGroupsBundle\\" : ""
-        }
+	"autoload" : {
+		"psr-4" : {
+			"SAS\\IRAD\\PennGroupsBundle\\" : ""
+		}
 	}
 }
