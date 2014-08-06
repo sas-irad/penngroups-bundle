@@ -18,12 +18,40 @@
 		}
 	],
 	"require" : {
-		"php" : ">=5.3.2"
+		"php" : ">=5.3.2",
+		"sas-irad/file-storage-bundle" : "dev-master"
+	},
+	"require-dev" : {
+		"sas-irad/file-storage-bundle" : "dev-master",
+		"sas-irad/google-admin-client-bundle" : "dev-master"
 	},
 	"minimum-stability" : "dev",
 	"autoload" : {
 		"psr-4" : {
 			"SAS\\IRAD\\PennGroupsBundle\\" : ""
 		}
-	}
+	},
+	"repositories" : [{
+			"type" : "vcs",
+			"url" : "https://github.com/sas-irad/file-storage-bundle"
+		}, {
+            "type" : "vcs",
+            "url" : "https://github.com/sas-irad/google-admin-client-bundle"
+        }, {
+            "type" : "package",
+            "package" : {
+                "name" : "google/google-api-php-client",
+                "version" : "1.0.4-beta",
+                "dist" : {
+                    "url" : "https://github.com/google/google-api-php-client/archive/1.0.4-beta.zip",
+                    "type" : "zip"
+                },
+                "autoload" : {
+                    "classmap" : [
+                        "src/"
+                    ]
+                }
+            }
+        }
+	]
 }

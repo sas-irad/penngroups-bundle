@@ -39,12 +39,24 @@ class WebServiceQuery {
     private $expected_result_code = 'SUCCESS';
 
 
-    public function __construct($params) {
-        // TODO: add checks for appropriate params
-        $this->username   = $params['username'];
-        $this->credential = $params['credential'];
-        $this->key        = $params['key'];
+    public function __construct(array $params) {
         
+        // checks for required params
+        foreach ( array('username', 'credential', 'key') as $param ) {
+            if ( isset($params[$param]) ) {
+                $this->$param = $params[$param];
+            } else {
+                throw new \Exception("Required WebServiceQuery parameter '$param' is missing.");
+            }
+        }
+        
+        // check that file params are valid
+        foreach ( array('credential', 'key') as $param ) {
+            if ( !is_file($this->$param) || !is_readable($this->$param) ) {
+                throw new \Exception("The file specfied by parameter '$param' is not readable.");
+            }
+        }        
+
         $this->parameters = array();
     }
     

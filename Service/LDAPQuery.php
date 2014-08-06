@@ -13,12 +13,26 @@ class LDAPQuery {
     private $key;
     private $filter;
     
-    public function __construct($params) {
-        // TODO: add checks for appropriate params
-        $this->username   = $params['username'];
-        $this->credential = $params['credential'];
-        $this->key        = $params['key'];
+    public function __construct(array $params) {
+
+        // checks for required params
+        foreach ( array('username', 'credential', 'key') as $param ) {
+            if ( isset($params[$param]) ) {
+                $this->$param = $params[$param];
+            } else {
+                throw new \Exception("Required LDAPQuery parameter '$param' is missing.");
+            }
+        }
         
+        // check that file params are valid
+        foreach ( array('credential', 'key') as $param ) {
+            if ( !is_file($this->$param) || !is_readable($this->$param) ) {
+                throw new \Exception("The file specfied by parameter '$param' is not readable.");
+            }
+        }
+                
+        // the filter attribute is used in the contruction of the
+        // LDAP query
         $this->filter     = array();
     }
     

@@ -2,6 +2,8 @@
 .settings
 .project
 .teeproject
+vendor
+composer.lock
 Tests/Resources/penngroups.txt
 Tests/Resources/public.pem
 Tests/Resources/private.pem
