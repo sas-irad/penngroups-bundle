@@ -1,0 +1,6 @@
+parameters:
+
+    penngroups:
+        username:       penngroups-user-name
+        password_file:  "%kernel.root_dir%/config/penngroups.txt"
+        cache_timeout:  600
