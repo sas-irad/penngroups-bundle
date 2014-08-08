@@ -4,14 +4,20 @@ namespace SAS\IRAD\PennGroupsBundle\Tests\PennGroups;
 
 use PHPUnit_Framework_TestCase;
 use SAS\IRAD\PennGroupsBundle\Service\WebServiceQuery;
+use SAS\IRAD\FileStorageBundle\Service\EncryptedFileStorageService;
 
 
 class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
     
     private function setupWs() {
         global $globalParams;
-        return new WebServiceQuery($globalParams);
+        return new WebServiceQuery($this->setupStorage(), $globalParams);
     }
+    
+    private function setupStorage() {
+        global $globalStorageParams;
+        return new EncryptedFileStorageService($globalStorageParams);
+    }    
     
     /**
      * Test constructor with no parameters specified
@@ -19,7 +25,7 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
     public function testConstructor1a() {
     
         try {
-            $wsQuery = new WebServiceQuery();
+            $wsQuery = new WebServiceQuery($this->setupStorage());
         } catch (\Exception $e) {
             // yeah! missing params throws exception
             return;
@@ -35,7 +41,7 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
     public function testConstructor1b() {
     
         try {
-            $wsQuery = new WebServiceQuery('hello');
+            $wsQuery = new WebServiceQuery($this->setupStorage(), 'hello');
         } catch (\Exception $e) {
             // yeah! non array throws exception
             return;
@@ -53,7 +59,7 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
         $params = array();
     
         try {
-            $wsQuery = new WebServiceQuery($params);
+            $wsQuery = new WebServiceQuery($this->setupStorage(), $params);
         } catch (\Exception $e) {
             // yeah! missing username param throws exception
             return;
@@ -64,16 +70,16 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
     
     
     /**
-     * Test missing "credential" parameter in constructor
+     * Test missing "password_file" parameter in constructor
      */
     public function testConstructor2() {
     
         $params = array('username' => 'username');
     
         try {
-            $wsQuery = new WebServiceQuery($params);
+            $wsQuery = new WebServiceQuery($this->setupStorage(), $params);
         } catch (\Exception $e) {
-            // yeah! missing credential param throws exception
+            // yeah! missing password_file param throws exception
             return;
         }
     
@@ -81,35 +87,15 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
     }
     
     /**
-     * Test missing "key" parameter in constructor
+     * Pass all parameters, but invalid file path
      */
     public function testConstructor3() {
     
-        $params = array('username'   => 'username',
-                        'credential' => '../Resources/private.pem');
+        $params = array('username'      => 'username',
+                        'password_file' => '/bogus/password/file/path');
     
         try {
-            $wsQuery = new WebServiceQuery($params);
-        } catch (\Exception $e) {
-            // yeah! missing "key" param throws exception
-            return;
-        }
-    
-        $this->fail("Expected an exception when calling WebServiceQuery constructor with insufficient parameters");
-    }
-
-
-    /**
-     * Pass all parameters, but invalid file paths
-     */
-    public function testConstructor4() {
-    
-        $params = array('username'   => 'username',
-                        'credential' => '/bogus/credential/path',
-                        'key'        => '/bogus/key/path');
-    
-        try {
-            $wsQuery = new WebServiceQuery($params);
+            $wsQuery = new WebServiceQuery($this->setupStorage(), $params);
         } catch (\Exception $e) {
             // yeah! invalid file paths throws exception
             return;
@@ -121,19 +107,18 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
     /**
      * This should be a valid constructor call
      */
-    public function testConstructor5() {
+    public function testConstructor4() {
     
         global $globalTestDir;
         
-        $params = array('username'   => 'username',
-                        'credential' => "$globalTestDir/Resources/private.pem",
-                        'key'        => "$globalTestDir/Resources/pw.txt");
+        $params = array('username'      => 'username',
+                        'password_file' => "$globalTestDir/Resources/penngroups.txt");
     
         try {
-            $wsQuery = new WebServiceQuery($params);
+            $wsQuery = new WebServiceQuery($this->setupStorage(), $params);
         } catch (\Exception $e) {
             echo $e->getMessage();
-            $this->fail("Constructor test with valid parameter tests failed.");
+            $this->fail("Constructor test with valid parameters failed.");
         }
         
         $this->assertTrue(is_object($wsQuery), "WebServiceQuery constructor did not return an object.");
@@ -169,6 +154,15 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
         $this->assertEquals("Mansfield", $result->getLastName());
     }
 
+
+    public function testNoPennIdResult() {
+    
+        $wsQuery = $this->setupWs();
+    
+        $result = $wsQuery->findByPennID('00112233');
+        $this->assertEquals(false, $result);
+    }    
+    
     
     /**
      * A pennkey argument which doesn't match expected format should throw an exception
@@ -198,5 +192,13 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
         $this->assertEquals("robertom", $result->getPennkey());
         $this->assertEquals("Roberto",  $result->getFirstName());
         $this->assertEquals("Mansfield", $result->getLastName());
+    }
+
+    public function testNoPennkeyResult() {
+    
+        $wsQuery = $this->setupWs();
+    
+        $result = $wsQuery->findByPennkey('root');
+        $this->assertEquals(false, $result);
     }    
 }

@@ -5,8 +5,10 @@ namespace SAS\IRAD\PennGroupsBundle\Tests\PennGroups;
 use PHPUnit_Framework_TestCase;
 use SAS\IRAD\PennGroupsBundle\Service\WebServiceQuery;
 use SAS\IRAD\PennGroupsBundle\Service\PennGroupsQueryCache;
+use SAS\IRAD\FileStorageBundle\Service\EncryptedFileStorageService;
 // mock session
 use Symfony\Component\HttpFoundation\Session\Session;
+
 
 class PennGroupsQueryCacheTest extends PHPUnit_Framework_TestCase {
     
@@ -14,10 +16,11 @@ class PennGroupsQueryCacheTest extends PHPUnit_Framework_TestCase {
     
     private function setupQueryCache() {
         global $globalParams;
-        $ws = new WebServiceQuery($globalParams);
+        global $globalStorageParams;
+        $ws = new WebServiceQuery(new EncryptedFileStorageService($globalStorageParams), $globalParams);
         $this->session = new Session();
         // expire cache after 2 seconds for test purposes
-        return new PennGroupsQueryCache(array('cache_timeout' => 2), $this->session, $ws);
+        return new PennGroupsQueryCache($this->session, $ws, array('cache_timeout' => 2));
     }
     
     
