@@ -7,3 +7,7 @@ composer.lock
 Tests/Resources/penngroups.txt
 Tests/Resources/public.pem
 Tests/Resources/private.pem
+Tests/app/cache
+Tests/app/logs
+Tests/app/parameters.yml
+Tests/app/config/penngroups.txt
