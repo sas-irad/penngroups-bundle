@@ -2,15 +2,15 @@
 
 namespace SAS\IRAD\PennGroupsBundle\Service;
 
-use SAS\IRAD\PennGroupsBundle\Utility\Unlock;
-use SAS\IRAD\GoogleAdminClientBundle\Service\PersonInfo;
+use SAS\IRAD\PersonInfoBundle\PersonInfo\PersonInfo;
+use SAS\IRAD\FileStorageBundle\Service\EncryptedFileStorageService;
 
 
 class WebServiceQuery {
     
     private $username;
-    private $credential;
-    private $key;
+    private $password_file;
+    private $passwordStorage;
     
     /**
      * Array of query string parameters to include in web api call
@@ -38,27 +38,40 @@ class WebServiceQuery {
      */
     private $expected_result_code = 'SUCCESS';
 
-
-    public function __construct(array $params) {
+    /**
+     * The curl session to access the web service
+     * @var curl_session
+     */
+    private $session;
+    
+    
+    public function __construct(EncryptedFileStorageService $storage, array $params) {
         
         // checks for required params
-        foreach ( array('username', 'credential', 'key') as $param ) {
+        foreach ( array('username', 'password_file') as $param ) {
             if ( isset($params[$param]) ) {
                 $this->$param = $params[$param];
             } else {
                 throw new \Exception("Required WebServiceQuery parameter '$param' is missing.");
             }
         }
-        
-        // check that file params are valid
-        foreach ( array('credential', 'key') as $param ) {
-            if ( !is_file($this->$param) || !is_readable($this->$param) ) {
-                throw new \Exception("The file specfied by parameter '$param' is not readable.");
-            }
-        }        
 
+        // file storage for encrypted password
+        $this->passwordStorage = $storage->init($this->password_file);        
+        
+        // parameters for web service call
         $this->parameters = array();
+        
+        // our web service resource. initialize it only when needed
+        $this->session = false;        
     }
+    
+    public function __destruct() {
+        if ( $this->session ) {
+            curl_close($this->session);
+        }
+    }
+    
     
     /**
      * Perform a web service query matching on penn_id. Return an array
@@ -135,6 +148,30 @@ class WebServiceQuery {
     }
     
     /**
+     * Return/initialize curl session for web service query
+     * @return curl_session
+     */
+    private function getSession() {
+        // initialize session if we haven't already
+        if ( !$this->session ) {
+            $this->session = curl_init();
+            
+            curl_setopt($this->session, CURLOPT_HTTPHEADER, array('Content-type: text/xml;charset="utf-8"'));
+            curl_setopt($this->session, CURLOPT_HTTPGET, true);
+            curl_setopt($this->session, CURLOPT_RETURNTRANSFER, true);
+            
+            // These were previously set to false to get a valid ssl connection (in case this breaks elsewhere)
+            curl_setopt($this->session, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($this->session, CURLOPT_SSL_VERIFYHOST, true);
+            
+            // set authentication header
+            curl_setopt($this->session, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+            curl_setopt($this->session, CURLOPT_USERPWD, $this->username . ":" . $this->passwordStorage->get());
+        }
+        return $this->session;
+    }
+    
+    /**
      * execute the call to the webservice
      *
      * @access protected
@@ -144,10 +181,6 @@ class WebServiceQuery {
     
         $results = array();
 
-        // get credentials ready
-        $unlock = new Unlock($this->key);
-        $password = $unlock->file($this->credential);
-
         // we only want "human" results
         $this->setParam('sourceIds', 'pennperson');
         
@@ -156,26 +189,13 @@ class WebServiceQuery {
         
         // build url for rest api call
         $url = implode('/', array($this->service_url, $this->service_path)) . '?' . $this->getQueryString();
+        curl_setopt($this->getSession(), CURLOPT_URL, $url);
         
-        $session = curl_init($url);
-        
-        curl_setopt($session, CURLOPT_HTTPHEADER, array('Content-type: text/xml;charset="utf-8"'));
-        curl_setopt($session, CURLOPT_HTTPGET, true);
-        curl_setopt($session, CURLOPT_RETURNTRANSFER, true);
-
-        // necessary on groups.sas (old certs lists?)
-        curl_setopt($session, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($session, CURLOPT_SSL_VERIFYHOST, false);
-        
-        // set authentication header
-        curl_setopt($session, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-        curl_setopt($session, CURLOPT_USERPWD, $this->username . ":" . $password);
-    
         //do the call
-        $response = curl_exec($session);
+        $response = curl_exec($this->getSession());
 
         if ( $response === false ) {
-            throw new \Exception('Connection Error:' . curl_error($session));
+            throw new \Exception('Connection Error:' . curl_error($this->getSession()));
             
         } 
 
@@ -226,8 +246,6 @@ class WebServiceQuery {
             $results[] = $person;
         }
         
-        curl_close($session);
-
         // clear our values after a query
         $this->parameters = array();
         $this->setServicePath(null);

@@ -2,21 +2,22 @@
 
 namespace SAS\IRAD\PennGroupsBundle\Service;
 
-use SAS\IRAD\PennGroupsBundle\Utility\Unlock;
-use SAS\IRAD\GoogleAdminClientBundle\Service\PersonInfo;
-
+use SAS\IRAD\PersonInfoBundle\PersonInfo\PersonInfo;
+use SAS\IRAD\FileStorageBundle\Service\EncryptedFileStorageService;
 
 class LDAPQuery {
     
+    private $passwordStorage;
     private $username;
-    private $credential;
+    private $password_file;
     private $key;
+    private $ldap;
     private $filter;
     
-    public function __construct(array $params) {
+    public function __construct(EncryptedFileStorageService $storage, array $params) {
 
         // checks for required params
-        foreach ( array('username', 'credential', 'key') as $param ) {
+        foreach ( array('username', 'password_file') as $param ) {
             if ( isset($params[$param]) ) {
                 $this->$param = $params[$param];
             } else {
@@ -24,16 +25,22 @@ class LDAPQuery {
             }
         }
         
-        // check that file params are valid
-        foreach ( array('credential', 'key') as $param ) {
-            if ( !is_file($this->$param) || !is_readable($this->$param) ) {
-                throw new \Exception("The file specfied by parameter '$param' is not readable.");
-            }
+        // file storage for encrypted password
+        $this->passwordStorage = $storage->init($this->password_file);
+        
+        // the filter attribute is used in the contruction of the LDAP query
+        $this->filter = array();
+        
+        // our ldap resource. initialize it only when needed
+        $this->ldap = false;
+    }
+    
+    
+    public function __destruct() {
+        if ( $this->ldap ) {
+            // close ldap
+            ldap_unbind($this->ldap);
         }
-                
-        // the filter attribute is used in the contruction of the
-        // LDAP query
-        $this->filter     = array();
     }
     
     
@@ -75,53 +82,62 @@ class LDAPQuery {
     }
     
     
+    private function getLdap() {
+        // initialize connection if we haven't already
+        if ( !$this->ldap ) {
+
+            // settings for ldap connection
+            $pg_server = 'penngroups.upenn.edu';
+            $bind_dn   = "uid={$this->username},ou=entities,dc=upenn,dc=edu";
+            
+            // uncomment for detailed debugging
+            // ldap_set_option(NULL, LDAP_OPT_DEBUG_LEVEL, 7);
+            $this->ldap = ldap_connect($pg_server);
+            
+            if ( !$this->ldap ) {
+                throw new \Exception("ldap_connect failed: " . ldap_error($this->ldap));
+            }
+            
+            ldap_set_option($this->ldap, LDAP_OPT_PROTOCOL_VERSION, 3);
+            ldap_set_option($this->ldap, LDAP_OPT_REFERRALS, 0);
+            
+            if ( !ldap_start_tls($this->ldap) ) {
+                throw new \Exception("ldap_start_tls failed: " . ldap_error($this->ldap));
+            }
+            
+            // get password ready
+            $password = $this->passwordStorage->get();
+            
+            if ( !ldap_bind($this->ldap, $bind_dn, $password) ) {
+                throw new \Exception("ldap_bind failed: "  . ldap_error($this->ldap));
+            }            
+        }
+        return $this->ldap;
+    }
+    
     private function execute() {
+
+        $ldap = $this->getLdap();
         
-        $this->user = "penngroups.ldap_query";
-        
-        // settings for ldap connection and query
-        $pg_server = 'penngroups.upenn.edu';
-        $bind_dn   = "uid={$this->username},ou=entities,dc=upenn,dc=edu";
-        $base_dn   = 'ou=pennnames,dc=upenn,dc=edu';
-        $attrs     = array('pennname', 'pennid');
+        // settings for ldap query
+        $base_dn = 'ou=pennnames,dc=upenn,dc=edu';
+        $attrs   = array('pennname', 'pennid');
 
         // construct our search filter
-        $filter    = $this->getQueryFilter();
+        $filter  = $this->getQueryFilter();
         
-        // uncomment for detailed debugging
-        // ldap_set_option(NULL, LDAP_OPT_DEBUG_LEVEL, 7);
-        $lh = ldap_connect($pg_server);
-    
-        if ( !$lh ) {
-            throw new \Exception("ldap_connect failed: " . ldap_error($lh));
-        }
-    
-        ldap_set_option($lh, LDAP_OPT_PROTOCOL_VERSION, 3);
-        ldap_set_option($lh, LDAP_OPT_REFERRALS, 0);
-    
-        if ( !ldap_start_tls($lh) ) {
-            throw new \Exception("ldap_start_tls failed: " . ldap_error($lh));
-        }
-    
-        // get credentials ready
-        $unlock = new Unlock($this->key);
-        $password = $unlock->file($this->credential);
-
-        if ( !ldap_bind($lh, $bind_dn, $password) ) {
-            throw new \Exception("ldap_bind failed: "  . ldap_error($lh));
-        }
-    
-        $results = ldap_search($lh, $base_dn, $filter, $attrs);
+        // run ldap query
+        $results = ldap_search($ldap, $base_dn, $filter, $attrs);
         
         if ( !$results ) {
             // search failed with error
-            throw new \Exception("ldap_search failed: " . ldap_error($lh));
+            throw new \Exception("ldap_search failed: " . ldap_error($ldap));
         }
 
         // extract entries from $results resource
-        $entries = ldap_get_entries($lh, $results);
+        $entries = ldap_get_entries($ldap, $results);
         if ( $entries === false ) {
-            throw new \Exception("ldap_get_entries failed: " . ldap_error($lh));
+            throw new \Exception("ldap_get_entries failed: " . ldap_error($ldap));
         }
         
         if ( $entries['count'] === 0 ) {
@@ -133,9 +149,6 @@ class LDAPQuery {
             // we didn't get a unique result
             throw new \Exception("Error: ldap returned multiple entries when only one expected.");
         }
-    
-        // close ldap
-        ldap_unbind($lh);
     
         // so we should have a single unique result at this point
         $result = array('penn_id' => $entries[0]['pennid'][0],

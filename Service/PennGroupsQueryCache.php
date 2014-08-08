@@ -19,7 +19,7 @@ class PennGroupsQueryCache {
     private $session;
     private $webService;
     
-    public function __construct($params, Session $session, WebServiceQuery $webService) {
+    public function __construct(Session $session, WebServiceQuery $webService, $params) {
         
         if ( !isset($params['cache_timeout']) ) {
             throw new \Exception("Required option 'cache_timeout' not specified for PennGroupsQueryCache");

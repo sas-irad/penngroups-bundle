@@ -1,14 +1,22 @@
+parameters:
+
+    penngroups:
+        username:       penngroups-user-name
+        password_file:  "%kernel.root_dir/config/penngroups.txt"
+        cache_timeout:  600
+        
+
 services:
 
     ## service for penngroups queries
     penngroups.ldap_query:
         class: SAS\IRAD\PennGroupsBundle\Service\LDAPQuery
-        arguments:  [ "%penngroups%" ]
+        arguments:  [ @storage.encrypted, "%penngroups%" ]
 
     penngroups.web_service_query:
         class: SAS\IRAD\PennGroupsBundle\Service\WebServiceQuery
-        arguments:  [ "%penngroups%" ]
+        arguments:  [ @storage.encrypted, %penngroups% ]
         
     penngroups.query_cache: 
         class: SAS\IRAD\PennGroupsBundle\Service\PennGroupsQueryCache
-        arguments: [ "%penngroups%", @session, @penngroups.web_service_query ]
+        arguments: [ @session, @penngroups.web_service_query, "%penngroups%" ]
