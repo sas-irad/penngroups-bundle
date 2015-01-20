@@ -18,4 +18,3 @@ require_once "../Service/LDAPQuery.php";
 require_once "../Service/WebServiceQuery.php";
 require_once "../Service/PennGroupsQueryCache.php";
 require_once "./Resources/Mock/Session.php";
-require_once "../Utility/Unlock.php";
