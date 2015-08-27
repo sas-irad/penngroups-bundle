@@ -66,5 +66,39 @@ class PennGroupsQueryCacheTest extends PHPUnit_Framework_TestCase {
         $this->assertEquals("robertom", $result->getPennkey());
         $this->assertEquals("Roberto",  $result->getFirstName());
         $this->assertEquals("Mansfield", $result->getLastName());
+        
+        
+        // test other methods now that we "trust" the caching
+        $result = $queryCache->findByPennkey('robertom');
+
+        $this->assertEquals("10078969", $result->getPennId());
+        $this->assertEquals("robertom", $result->getPennkey());
+        $this->assertEquals("Roberto",  $result->getFirstName());
+        $this->assertEquals("Mansfield", $result->getLastName());
+        
+        $result = $queryCache->getGroupMembers('test:testGroup');
+        
+        $this->assertTrue(is_array($result));
+        $this->assertEquals(1, count($result));
+        // use Chris Hyzer as test case
+        $this->assertEquals('10021368', $result[0]['penn_id']);        
+        
+        $result = $queryCache->getGroups('10021368');
+        
+        $this->assertTrue(is_array($result));
+        $this->assertTrue(in_array('test:testGroup', $result));
+        
+        // check groups for robertom
+        $result = $queryCache->getGroups('10078969');
+        
+        $this->assertTrue(is_array($result));
+        $this->assertTrue(in_array('penn:community:employeeNonTemp', $result));
+        
+        // check group membership
+        $result = $queryCache->isMemberOf('test:testGroup', '10021368');
+        $this->assertTrue($result);
+        
+        $result = $queryCache->isMemberOf('test:testGroup', '10078969');
+        $this->assertFalse($result);
     }
 }

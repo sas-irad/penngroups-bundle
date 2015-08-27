@@ -42,8 +42,20 @@ class PennGroupsQueryCache {
         return $this->find('findByPennID', "penngroups/penn_id/$penn_id", $penn_id);
     }    
     
+    public function getGroupMembers($path) {
+        return $this->find('getGroupMembers', "penngroups/group/$path", $path);
+    }
+
+    public function getGroups($penn_id) {
+        return $this->find('getGroups', "penngroups/groupMemberships/$penn_id", $penn_id);
+    }
+
+    public function isMemberOf($path, $penn_id) {
+        return $this->find('isMemberOf', "penngroups/isMemberOf/$path/$penn_id", $path, $penn_id);
+    }
     
-    private function find($method, $key, $arg) {
+    
+    private function find($method, $key, $arg1, $arg2 = null) {
         
         if ( $cache = $this->session->get($key) ) {
             if ( $cache['expires_on'] > time() ) {
@@ -51,7 +63,7 @@ class PennGroupsQueryCache {
             }
         }
         
-        $data = $this->webService->$method($arg);
+        $data = $this->webService->$method($arg1, $arg2);
         $info = array('expires_on' => time() + $this->cache_timeout,
                       'data'       => $data);
         

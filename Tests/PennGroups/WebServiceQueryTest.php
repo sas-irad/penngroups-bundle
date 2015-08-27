@@ -200,5 +200,64 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
     
         $result = $wsQuery->findByPennkey('root');
         $this->assertEquals(false, $result);
-    }    
+    }
+    
+    public function testGetGroupMembers() {
+        
+        $wsQuery = $this->setupWs();
+        
+        $test_group = 'test:testGroup';
+        $members = $wsQuery->getGroupMembers($test_group); 
+        
+        $this->assertTrue(is_array($members));
+        $this->assertEquals(1, count($members));
+        // use Chris Hyzer as test case
+        $this->assertEquals('10021368', $members[0]['penn_id']);
+        
+        // an invalid group should throw an exception
+        $test_group = 'test:bogusGroup';
+        
+        try {
+            $members = $wsQuery->getGroupMembers($test_group);
+        } catch (\Exception $e) {
+            return;
+        }
+        
+        $this->fail("Exception expected for invalid group.");
+    }
+    
+    public function testGetGroups() {
+    
+        $wsQuery = $this->setupWs();
+
+        // use Chris Hyzer as test case
+        $groups = $wsQuery->getGroups('10021368');
+        
+        $this->assertTrue(is_array($groups));
+        $this->assertTrue(in_array('test:testGroup', $groups));
+        
+        // test bogus penn_id
+        try {
+            $groups = $wsQuery->getGroups('01234567');
+        } catch (\Exception $e) {
+            return;
+        }
+        
+        $this->fail("Exception expected for invalid penn_id.");
+    }
+    
+    public function testIsMemberOf() {
+        
+        $wsQuery = $this->setupWs();
+        
+        // test Chris Hyzer's membership in test:testGroup
+        $this->assertTrue($wsQuery->isMemberOf('test:testGroup', '10021368'));
+
+        // test robertom's membership in test:testGroup
+        $this->assertFalse($wsQuery->isMemberOf('test:testGroup', '10078969'));
+        
+        // test bogus values for group
+        $this->assertFalse($wsQuery->isMemberOf('test:bogusGroup', '10078969'));
+        
+    }
 }

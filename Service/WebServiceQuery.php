@@ -43,6 +43,13 @@ class WebServiceQuery {
      * @var curl_session
      */
     private $session;
+
+    /**
+     * The xml result of the last web service query
+     * @var \SimpleXMLElement
+     */
+    private $xml;
+    
     
     
     public function __construct(EncryptedFileStorageService $storage, array $params) {
@@ -90,7 +97,15 @@ class WebServiceQuery {
         $this->setParam('wsLiteObjectType', 'WsRestGetSubjectsLiteRequest');
         $this->setParam('subjectId', $penn_id);
         
-        return $this->execute();
+        $this->execute();
+        $subjects = $this->getSubjectsFromResult();
+        
+        if ( $subjects ) {
+            // convert first result to PersonInfo object
+            return new PersonInfo($subjects[0]);
+        }
+        
+        return false;
     }
     
 
@@ -111,7 +126,67 @@ class WebServiceQuery {
         $this->setParam('wsLiteObjectType', 'WsRestGetSubjectsLiteRequest');
         $this->setParam('subjectIdentifier', $pennkey);
         
-        return $this->execute();
+        $this->execute();
+        $subjects = $this->getSubjectsFromResult();
+        
+        if ( $subjects ) {
+            // convert first result to PersonInfo object
+            return new PersonInfo($subjects[0]);
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Return an array of members in the given penngroup path
+     * @param string $path Path for penngroup
+     * @return array
+     */
+    public function getGroupMembers($path) {
+        
+        $this->setServicePath('groups/' . urlencode($path) . '/members');
+        $this->execute();
+        $subjects = $this->getSubjectsFromResult();
+        
+        return ( count($subjects) > 0 ? $subjects : false);
+    }
+
+    /**
+     * Return an array of groups where $penn_id has membership
+     * @param string $penn_id Penn ID to query
+     * @return array
+     */
+    public function getGroups($penn_id) {
+
+        if ( !preg_match('/^\d{8}$/', $penn_id) ) {
+            throw new \Exception("Invalid penn_id passed.");
+        }
+        
+        $this->setServicePath("subjects/$penn_id/groups");
+
+        $this->execute();
+        $groups = $this->getGroupsFromResult();
+        
+        return ( count($groups) > 0 ? $groups : false);
+    }
+    
+    /**
+     * Test if a given subject (penn_id) is a member of the given penngroup
+     * @param string $path Path of penngroup
+     * @param string $penn_id Penn ID of subject to test
+     * @return boolean
+     */
+    public function isMemberOf($path, $penn_id) {
+
+        if ( !preg_match('/^\d{8}$/', $penn_id) ) {
+            throw new \Exception("Invalid penn_id passed.");
+        }
+        
+        $this->setServicePath("groups/" . urlencode($path) . "/members/$penn_id");
+        $this->execute();
+
+        // check result code in query results
+        return ( (string) $this->xml->resultMetadata->resultCode === 'IS_MEMBER' ) ;
     }
     
     /**
@@ -162,7 +237,7 @@ class WebServiceQuery {
             
             // These were previously set to false to get a valid ssl connection (in case this breaks elsewhere)
             curl_setopt($this->session, CURLOPT_SSL_VERIFYPEER, true);
-            curl_setopt($this->session, CURLOPT_SSL_VERIFYHOST, true);
+            curl_setopt($this->session, CURLOPT_SSL_VERIFYHOST, 2);
             
             // set authentication header
             curl_setopt($this->session, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
@@ -175,12 +250,10 @@ class WebServiceQuery {
      * execute the call to the webservice
      *
      * @access protected
-     * @return SimpleXMLElement
+     * @throws \Exception
      */
     protected function execute() {
     
-        $results = array();
-
         // we only want "human" results
         $this->setParam('sourceIds', 'pennperson');
         
@@ -196,66 +269,108 @@ class WebServiceQuery {
 
         if ( $response === false ) {
             throw new \Exception('Connection Error:' . curl_error($this->getSession()));
-            
         } 
 
         // did we get back valid xml?
         try {
-            $xml = simplexml_load_string($response);
+            $this->xml = simplexml_load_string($response);
 
         } catch (\Exception $e) {
             throw new \Exception("Webservice did not return valid xml: $response");    
         }
-            
+        
+        // clear our values after a successful query
+        $this->parameters = array();
+        $this->setServicePath(null);
+    }
+    
+    /**
+     * Check lastest web service query for subjects in the results
+     * @throws \Exception
+     * @return array
+     */
+    protected function getSubjectsFromResult() {
+    
+        $subjects = array();
+        
         // did we get a valid query result?
-        if ( (string) $xml->resultMetadata->resultCode != $this->expected_result_code ) {
+        if ( (string) $this->xml->resultMetadata->resultCode != $this->expected_result_code ) {
             // throw exception on error? (but not empty search results)
-            throw new \Exception((string) $xml->resultMetadata->resultMessage);
+            throw new \Exception((string) $this->xml->resultMetadata->resultMessage);
         }
         
         // did we find anything?
-        if ( !$xml->wsSubjects || (string) $xml->wsSubjects->WsSubject->resultCode != $this->expected_result_code ) {
+        if ( !$this->xml->wsSubjects ) {
             return false;
         }
 
-        // okay, we should have valid query results at this point
-        // we need to flip our attribute descriptions so we can refer to them by name
-        $attribute = array();
-        $index     = 0;
-        foreach ( $xml->subjectAttributeNames->string as $attribName ) {
-            $attribute[(string) $attribName] = $index++;
+        // did we have a subject error?
+        if ( $this->xml->wsSubjects && (string) $this->xml->wsSubjects->WsSubject->resultCode != $this->expected_result_code ) {
+            return false;
         }
-        
-        // convert xml search results to array (if we have any)
-        foreach ( $xml->wsSubjects->WsSubject as $subject ) {
 
-            $personAttributes = (array) $subject->attributeValues->string;
+        // Do we have attributes to return? Use "pennkey" instead of "pennname" for attribute name.
+        $attribute = array();
+        $index = 0;
+        if ( $this->xml->subjectAttributeNames->string ) {
+            foreach ( $this->xml->subjectAttributeNames->string as $attribName ) {
+                if ( $attribName == 'PENNNAME' ) {
+                    $attribName = 'pennkey';
+                }
+                $attribute[$index] = strtolower($attribName);
+                $index++;
+            }
+        }
+
+        // convert xml subject results to array
+        foreach ( $this->xml->wsSubjects->WsSubject as $subject ) {
+
+            $person = array('penn_id' => (string) $subject->id);
             
-            $person = array('penn_id'     => (string) $subject->id,
-                            'name'        => (string) $subject->name,
-                            'first_name'  => (string) $subject->attributeValues->string[$attribute['FIRST_NAME']],
-                            'last_name'   => (string) $subject->attributeValues->string[$attribute['LAST_NAME']],
-                            'pennkey'     => (string) $subject->attributeValues->string[$attribute['PENNNAME']],
-                            'email'       => (string) $subject->attributeValues->string[$attribute['EMAIL']]);
+            if ( $subject->name ) {
+                $person['name'] = (string) $subject->name;
+            }
+            
+            foreach ( $attribute as $index => $name ) {
+                $person[$name] = (string) $subject->attributeValues->string[$index];
+            }
             
             // if "name" is empty, build it from first/last
-            if ( !$person['name'] ) {
+            if ( !isset($person['name']) && isset($person['last_name']) ) {
                 $person['name'] = $person['first_name'] . ' ' . $person['last_name'];
             }
             
-            $results[] = $person;
+            $subjects[] = $person;
         }
         
-        // clear our values after a query
-        $this->parameters = array();
-        $this->setServicePath(null);
-        
-        if ( $results[0] ) {
-            return new PersonInfo($results[0]);
-        } else {
-            return false;
-        }
+        return $subjects;
     }
 
-   
+    
+    /**
+     * Check lastest web service query for groups in the results
+     * @throws \Exception
+     */
+    protected function getGroupsFromResult() {
+
+        // did we get a valid query result?
+        if ( (string) $this->xml->resultMetadata->resultCode != $this->expected_result_code ) {
+            // throw exception on error? (but not empty search results)
+            throw new \Exception((string) $this->xml->resultMetadata->resultMessage);
+        }
+        
+        // did we find anything?
+        if ( !$this->xml->wsGroups ) {
+            return false;
+        }
+        
+        // convert xml group results to array (if we have any)
+        $groups = array();
+        
+        foreach ( $this->xml->wsGroups->WsGroup as $group ) {
+            $groups[(string) $group->uuid] = (string) $group->name;
+        }
+        
+        return $groups;
+    }
 }
