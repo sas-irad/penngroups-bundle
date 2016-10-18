@@ -152,6 +152,8 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
         $this->assertEquals("robertom", $result->getPennkey());
         $this->assertEquals("Roberto",  $result->getFirstName());
         $this->assertEquals("Mansfield", $result->getLastName());
+        $this->assertEquals("robertom@sas.upenn.edu", $result->getEmail());
+        $this->assertEquals("Roberto L Mansfield", $result->getName());
     }
 
 
@@ -192,6 +194,8 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
         $this->assertEquals("robertom", $result->getPennkey());
         $this->assertEquals("Roberto",  $result->getFirstName());
         $this->assertEquals("Mansfield", $result->getLastName());
+        $this->assertEquals("robertom@sas.upenn.edu", $result->getEmail());
+        $this->assertEquals("Roberto L Mansfield", $result->getName());        
     }
 
     public function testNoPennkeyResult() {

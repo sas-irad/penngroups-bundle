@@ -2,7 +2,7 @@
 
 namespace SAS\IRAD\PennGroupsBundle\Service;
 
-use SAS\IRAD\PersonInfoBundle\PersonInfo\PersonInfo;
+use SAS\IRAD\PennGroupsBundle\PersonInfo\PennGroupsPersonInfo;
 use SAS\IRAD\FileStorageBundle\Service\EncryptedFileStorageService;
 
 
@@ -102,7 +102,7 @@ class WebServiceQuery {
         
         if ( $subjects ) {
             // convert first result to PersonInfo object
-            return new PersonInfo($subjects[0]);
+            return new PennGroupsPersonInfo($subjects[0]);
         }
         
         return false;
@@ -131,7 +131,7 @@ class WebServiceQuery {
         
         if ( $subjects ) {
             // convert first result to PersonInfo object
-            return new PersonInfo($subjects[0]);
+            return new PennGroupsPersonInfo($subjects[0]);
         }
         
         return false;
