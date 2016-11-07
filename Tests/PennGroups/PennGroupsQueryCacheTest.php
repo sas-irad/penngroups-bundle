@@ -79,17 +79,17 @@ class PennGroupsQueryCacheTest extends PHPUnit_Framework_TestCase {
         $result = $queryCache->getGroupMembers('test:testGroup');
         
         $this->assertTrue(is_array($result));
-        $this->assertEquals(1, count($result));
+        $this->assertEquals(3, count($result));
         // use Chris Hyzer as test case
         $this->assertEquals('10021368', $result[0]['penn_id']);        
         
-        $result = $queryCache->getGroups('10021368');
+        $result = $queryCache->getGroupsList('10021368');
         
         $this->assertTrue(is_array($result));
         $this->assertTrue(in_array('test:testGroup', $result));
         
         // check groups for robertom
-        $result = $queryCache->getGroups('10078969');
+        $result = $queryCache->getGroupsList('10078969');
         
         $this->assertTrue(is_array($result));
         $this->assertTrue(in_array('penn:community:employeeNonTemp', $result));

@@ -214,7 +214,7 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
         $members = $wsQuery->getGroupMembers($test_group); 
         
         $this->assertTrue(is_array($members));
-        $this->assertEquals(1, count($members));
+        $this->assertEquals(3, count($members));
         // use Chris Hyzer as test case
         $this->assertEquals('10021368', $members[0]['penn_id']);
         
@@ -235,10 +235,10 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
         $wsQuery = $this->setupWs();
 
         // use Chris Hyzer as test case
-        $groups = $wsQuery->getGroups('10021368');
-        
-        $this->assertTrue(is_array($groups));
-        $this->assertTrue(in_array('test:testGroup', $groups));
+        $results = $wsQuery->getGroupsList('10021368');
+
+        $this->assertTrue(is_array($results));
+        $this->assertTrue(in_array('test:testGroup', $results));
         
         // test bogus penn_id
         try {
@@ -261,7 +261,11 @@ class WebServiceQueryTest extends PHPUnit_Framework_TestCase {
         $this->assertFalse($wsQuery->isMemberOf('test:testGroup', '10078969'));
         
         // test bogus values for group
-        $this->assertFalse($wsQuery->isMemberOf('test:bogusGroup', '10078969'));
-        
+        try {
+            $wsQuery->isMemberOf('test:bogusGroup', '10078969');
+        } catch (\Exception $e) {
+            return;
+        }
+        $this->fail("Exception expected for invalid group");
     }
 }

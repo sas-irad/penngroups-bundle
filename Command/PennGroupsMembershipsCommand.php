@@ -9,25 +9,23 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException;
 
-class PennGroupsListCommand extends ContainerAwareCommand {
+class PennGroupsMembershipsCommand extends ContainerAwareCommand {
     
     protected function configure() {
         
         $this
-            ->setName('penn-groups:list')
-            ->setDescription('List the members of a penngroup')
-            ->addArgument('input', InputArgument::REQUIRED, "The path of the penngroup")
-            ->addOption('filter', null, InputOption::VALUE_OPTIONAL, 'Filter option for penngroup listing (e.g., All, Immediate, NonImmediate)', 'All')
+            ->setName('penn-groups:memberships')
+            ->setDescription('List the memberships for a subject')
+            ->addArgument('input', InputArgument::REQUIRED, "The subject id of the member")
             ;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output) {
         
-        $penngroup = $input->getArgument('input');
-        $filter    = $input->getOption('filter');
+        $subject_id = $input->getArgument('input');
         $service   = $this->getContainer()->get('penngroups.web_service_query');
         
-        $result = $service->getGroupMembers($penngroup, $filter);
+        $result = $service->getGroups($subject_id);
         
         print_r($result);
 

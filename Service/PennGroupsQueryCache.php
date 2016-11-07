@@ -42,14 +42,18 @@ class PennGroupsQueryCache {
         return $this->find('findByPennID', "penngroups/penn_id/$penn_id", $penn_id);
     }    
     
-    public function getGroupMembers($path) {
-        return $this->find('getGroupMembers', "penngroups/group/$path", $path);
+    public function getGroupMembers($path, $memberFilter = 'All') {
+        return $this->find('getGroupMembers', "penngroups/group/$path", $path, $memberFilter);
     }
 
     public function getGroups($penn_id) {
         return $this->find('getGroups', "penngroups/groupMemberships/$penn_id", $penn_id);
     }
 
+    public function getGroupsList($penn_id) {
+        return $this->find('getGroupsList', "penngroups/groupMembershipsList/$penn_id", $penn_id);
+    }
+    
     public function isMemberOf($path, $penn_id) {
         return $this->find('isMemberOf', "penngroups/isMemberOf/$path/$penn_id", $path, $penn_id);
     }

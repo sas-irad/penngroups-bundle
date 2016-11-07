@@ -16,7 +16,7 @@ class PennGroupsLookupCommand extends ContainerAwareCommand {
         
         $this
             ->setName('penn-groups:lookup')
-            ->setDescription('Lookup a person by Penn ID or Pennkey')
+            ->setDescription('Lookup a Penn Groups subject by Penn ID, Pennkey or subject id')
             ->addArgument('input', InputArgument::REQUIRED, "The user's Penn ID or Pennkey")
             ;
     }
@@ -31,9 +31,13 @@ class PennGroupsLookupCommand extends ContainerAwareCommand {
             
         } elseif ( preg_match("/^[a-z][0-9a-z]{1,15}$/", $input) ) {
             $result = $service->findByPennkey($input);
-            
+
         } else {
-            throw new \Exception("User input doesn't appear to be a Penn ID or Pennkey");
+            $result = $service->getSubject($input);
+        }
+
+        if ( !$result ) {
+            throw new \Exception("No matches for subject id: $input");
         }
         
         print_r($result);
