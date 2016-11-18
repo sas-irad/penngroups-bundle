@@ -33,6 +33,16 @@ class Configuration implements ConfigurationInterface {
             ->scalarNode('key')
                 ->defaultValue("%kernel.root_dir%/config/keys/private.pem")
                 ->end()
+            ->arrayNode('file_storage')
+                ->children()
+                    ->arrayNode('keys')
+                    ->children()
+                        ->scalarNode('public')
+                            ->end()
+                        ->scalarNode('private')
+                            ->end()
+                    ->end()
+                ->end()
             ->end();
 
         return $treeBuilder;
